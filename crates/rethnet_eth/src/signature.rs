@@ -73,6 +73,14 @@ pub enum RecoveryMessage {
     Hash(B256),
 }
 
+struct Hash(B256);
+
+impl ThirtyTwoByteHash for Hash {
+    fn into_32(self) -> [u8; 32] {
+        self.0 .0
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Copy, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 /// An ECDSA signature
@@ -93,6 +101,33 @@ impl fmt::Display for Signature {
 }
 
 impl Signature {
+    /// Constructs a new instance from the provided message and private key
+    pub fn new<M>(message: M, private_key: &str) -> Result<Self, secp256k1::Error>
+    where
+        M: Into<RecoveryMessage>,
+    {
+        let secret_key = SecretKey::from_str(private_key)?;
+        let context = Secp256k1::signing_only();
+
+        let message = message.into();
+        let message_hash = match message {
+            RecoveryMessage::Data(ref message) => hash_message(message),
+            RecoveryMessage::Hash(hash) => hash,
+        };
+
+        let message_hash = Hash(message_hash);
+
+        let signature = context.sign_ecdsa_recoverable(&message_hash.into(), &secret_key);
+        let (recovery_id, bytes) = signature.serialize_compact();
+
+        let r = U256::try_from_be_slice(&bytes[..32]).expect("Must be valid");
+        let s = U256::try_from_be_slice(&bytes[32..64]).expect("Must be valid");
+        let v = u64::try_from(recovery_id.to_i32()).expect("Recovery IDs can only be 0..=3") as u64
+            + 27;
+
+        Ok(Self { r, s, v })
+    }
+
     /// Verifies that signature on `message` was produced by `address`
     pub fn verify<M, A>(&self, message: M, address: A) -> Result<(), SignatureError>
     where
@@ -121,14 +156,6 @@ impl Signature {
             RecoveryMessage::Data(ref message) => hash_message(message),
             RecoveryMessage::Hash(hash) => hash,
         };
-
-        struct Hash(B256);
-
-        impl ThirtyTwoByteHash for Hash {
-            fn into_32(self) -> [u8; 32] {
-                self.0 .0
-            }
-        }
 
         let message_hash = Hash(message_hash);
 
@@ -345,5 +372,20 @@ mod tests {
         ).expect("could not parse non-prefixed signature");
 
         assert_eq!(s1, s2);
+    }
+    #[test]
+    fn test_signature_new() {
+        let private_key = "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
+        let message = "whatever";
+
+        let signature = Signature::new(message, private_key).expect("Should succeed");
+
+        let recovered_address = signature.recover(message).unwrap();
+
+        let context = Secp256k1::signing_only();
+        assert_eq!(
+            recovered_address,
+            private_key_to_address(&context, private_key).unwrap()
+        );
     }
 }
