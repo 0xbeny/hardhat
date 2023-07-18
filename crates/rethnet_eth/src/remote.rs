@@ -92,9 +92,19 @@ pub enum BlockSpec {
 }
 
 impl BlockSpec {
+    /// Constructs an instance for the earliest block.
+    pub fn earliest() -> Self {
+        Self::Tag(BlockTag::Earliest)
+    }
+
     /// Constructs a `BlockSpec` for the latest block.
     pub fn latest() -> Self {
         Self::Tag(BlockTag::Latest)
+    }
+
+    /// Constructs an instance for the pending block.
+    pub fn pending() -> Self {
+        Self::Tag(BlockTag::Pending)
     }
 }
 
