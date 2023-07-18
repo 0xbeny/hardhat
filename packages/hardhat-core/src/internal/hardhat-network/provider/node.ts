@@ -493,7 +493,7 @@ export class HardhatNode extends EventEmitter {
     blockNumberOrPending?: bigint | "pending"
   ): Promise<bigint> {
     if (blockNumberOrPending === undefined) {
-      blockNumberOrPending = this.getLatestBlockNumber();
+      blockNumberOrPending = await this.getLatestBlockNumber();
     }
 
     const account = await this._runInBlockContext(blockNumberOrPending, () =>
@@ -537,7 +537,7 @@ export class HardhatNode extends EventEmitter {
     return this._context.blockchain().getLatestBlock();
   }
 
-  public getLatestBlockNumber(): bigint {
+  public async getLatestBlockNumber(): Promise<bigint> {
     return this._context.blockchain().getLatestBlockNumber();
   }
 
@@ -546,9 +546,9 @@ export class HardhatNode extends EventEmitter {
       const block = await this._context.blockchain().getLatestBlock();
       const totalDifficulty = await this._context
         .blockchain()
-        .getTotalDifficulty(block.hash());
+        .getTotalDifficultyByHash(block.hash());
 
-      return [block, totalDifficulty];
+      return [block, totalDifficulty!];
     });
   }
 
@@ -715,7 +715,7 @@ export class HardhatNode extends EventEmitter {
     try {
       const block = await this._context
         .blockchain()
-        .getBlock(blockNumberOrPending);
+        .getBlockByNumber(blockNumberOrPending);
       return block;
     } catch {
       return undefined;
@@ -724,7 +724,7 @@ export class HardhatNode extends EventEmitter {
 
   public async getBlockByHash(blockHash: Buffer): Promise<Block | undefined> {
     try {
-      const block = await this._context.blockchain().getBlock(blockHash);
+      const block = await this._context.blockchain().getBlockByHash(blockHash);
       return block;
     } catch {
       return undefined;
@@ -740,8 +740,10 @@ export class HardhatNode extends EventEmitter {
     return block ?? undefined;
   }
 
-  public async getBlockTotalDifficulty(block: Block): Promise<bigint> {
-    return this._context.blockchain().getTotalDifficulty(block.hash());
+  public async getBlockTotalDifficulty(
+    block: Block
+  ): Promise<bigint | undefined> {
+    return this._context.blockchain().getTotalDifficultyByHash(block.hash());
   }
 
   public async getCode(
@@ -809,6 +811,8 @@ export class HardhatNode extends EventEmitter {
     hash: Buffer | string
   ): Promise<RpcReceiptOutput | undefined> {
     const hashBuffer = hash instanceof Buffer ? hash : toBuffer(hash);
+    const block = await this._context.blockchain().getBlockByHash(hashBuffer);
+    const receipt = block?.header;
     const receipt = await this._context
       .blockchain()
       .getTransactionReceipt(hashBuffer);
@@ -1205,7 +1209,7 @@ export class HardhatNode extends EventEmitter {
     newestBlock: bigint | "pending",
     rewardPercentiles: number[]
   ): Promise<FeeHistory> {
-    const latestBlock = this.getLatestBlockNumber();
+    const latestBlock = await this.getLatestBlockNumber();
     const pendingBlockNumber = latestBlock + 1n;
 
     const resolvedNewestBlock =
@@ -1812,7 +1816,7 @@ export class HardhatNode extends EventEmitter {
               filter.id,
               getRpcBlock(
                 block,
-                td,
+                td!,
                 shouldShowTransactionTypeForHardfork(this._common),
                 false
               )
@@ -1866,7 +1870,7 @@ export class HardhatNode extends EventEmitter {
       return this._runInPendingBlockContext(action);
     }
 
-    if (blockNumberOrPending === this.getLatestBlockNumber()) {
+    if (blockNumberOrPending === (await this.getLatestBlockNumber())) {
       return action();
     }
 
@@ -2060,7 +2064,7 @@ export class HardhatNode extends EventEmitter {
     filterParams: FilterParams,
     isFilter: boolean
   ): Promise<FilterParams> {
-    const latestBlockNumber = this.getLatestBlockNumber();
+    const latestBlockNumber = await this.getLatestBlockNumber();
     const newFilterParams = { ...filterParams };
 
     if (newFilterParams.fromBlock === LATEST_BLOCK) {
@@ -2142,7 +2146,7 @@ export class HardhatNode extends EventEmitter {
 
   private async _persistIrregularWorldState(): Promise<void> {
     this._irregularStatesByBlockNumber.set(
-      this.getLatestBlockNumber(),
+      await this.getLatestBlockNumber(),
       await this._context.vm().makeSnapshot()
     );
   }

@@ -1,4 +1,4 @@
-use std::ops::Deref;
+use std::{ops::Deref, sync::Arc};
 
 use napi::{
     bindgen_prelude::{Buffer, Either3},
@@ -38,7 +38,10 @@ impl MineBlockResult {
     #[doc = "Retrieves the mined block."]
     #[napi(getter)]
     pub fn block(&self) -> Block {
-        Block::new(self.block.clone(), self.transaction_callers.clone())
+        Block::new(
+            Arc::new(self.block.clone()),
+            self.transaction_callers.clone(),
+        )
     }
 
     #[doc = "Retrieves the transactions' callers."]

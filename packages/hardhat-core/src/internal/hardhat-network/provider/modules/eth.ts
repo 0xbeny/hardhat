@@ -328,7 +328,7 @@ export class EthModule {
   }
 
   private async _blockNumberAction(): Promise<string> {
-    const blockNumber = this._node.getLatestBlockNumber();
+    const blockNumber = await this._node.getLatestBlockNumber();
     return numberToRpcQuantity(blockNumber);
   }
 
@@ -501,7 +501,7 @@ export class EthModule {
 
     return getRpcBlock(
       block,
-      totalDifficulty,
+      totalDifficulty!,
       shouldShowTransactionTypeForHardfork(this._common),
       includeTransactions
     );
@@ -539,7 +539,7 @@ export class EthModule {
 
     return getRpcBlock(
       block,
-      totalDifficulty,
+      totalDifficulty!,
       shouldShowTransactionTypeForHardfork(this._common),
       includeTransactions,
       numberOrPending === "pending"

@@ -12,4 +12,6 @@ export interface BlockchainAdapter {
   getLatestBlock(): Promise<Block>;
 
   getLatestBlockNumber(): Promise<bigint>;
+
+  getTotalDifficultyByHash(hash: Buffer): Promise<bigint | undefined>;
 }

@@ -15,6 +15,7 @@ import { BlockMinerAdapter } from "../miner";
 import { NodeConfig, isForkedNodeConfig } from "../node-types";
 import { HardhatEthContext } from "./hardhat";
 import { RethnetEthContext } from "./rethnet";
+import { BlockchainAdapter } from "../blockchain";
 
 export class DualEthContext implements EthContextAdapter {
   constructor(
@@ -55,7 +56,7 @@ export class DualEthContext implements EthContextAdapter {
     return new DualEthContext(hardhat, rethnet, vm);
   }
 
-  public async blockchain(): HardhatBlockchainInterface {}
+  public async blockchain(): BlockchainAdapter {}
 
   public async blockBuilder(
     common: Common,

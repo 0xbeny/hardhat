@@ -101,7 +101,9 @@ where
     ) -> Result<MineBlockResult, MineBlockError<BE, SE>> {
         let mut block_builder = {
             let blockchain = self.blockchain.read().await;
-            let parent_block = blockchain.last_block();
+            let parent_block = blockchain
+                .last_block()
+                .map_err(MineBlockError::Blockchain)?;
 
             BlockBuilder::new(
                 self.blockchain.clone(),
@@ -110,7 +112,7 @@ where
                 parent_block.header.clone(),
                 BlockOptions {
                     beneficiary: Some(self.beneficiary),
-                    number: Some(blockchain.last_block().header.number),
+                    number: Some(parent_block.header.number),
                     gas_limit: Some(self.block_gas_limit),
                     timestamp: Some(timestamp),
                     mix_hash: if self.cfg.spec_id >= SpecId::MERGE {

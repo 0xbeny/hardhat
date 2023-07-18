@@ -7,6 +7,8 @@ import {
   RethnetContext,
   StateManager,
 } from "rethnet-evm";
+import { BlockchainAdapter } from "../blockchain";
+import { RethnetBlockchain } from "../blockchain/rethnet";
 import { EthContextAdapter } from "../context";
 import { MemPoolAdapter } from "../mem-pool";
 import { BlockMinerAdapter } from "../miner";
@@ -20,13 +22,12 @@ import { getHardforkName } from "../../../util/hardforks";
 import { RethnetStateManager } from "../RethnetState";
 import { RethnetMemPool } from "../mem-pool/rethnet";
 import { makeCommon } from "../utils/makeCommon";
-import { HardhatBlockchainInterface } from "../types/HardhatBlockchainInterface";
 
 // Only one is allowed to exist
 export const globalRethnetContext = new RethnetContext();
 
 export class RethnetEthContext implements EthContextAdapter {
-  private _blockchain: Blockchain;
+  private _blockchain: RethnetBlockchain;
   private _mempool: RethnetMemPool;
   private _miner: RethnetMiner;
   private _state: RethnetStateManager;
@@ -36,7 +37,7 @@ export class RethnetEthContext implements EthContextAdapter {
     const common = makeCommon(config);
     const hardforkName = getHardforkName(config.hardfork);
 
-    this._blockchain = new Blockchain();
+    this._blockchain = new RethnetBlockchain(new Blockchain(), common);
     this._state = new RethnetStateManager(
       new StateManager(globalRethnetContext)
     );
@@ -44,18 +45,22 @@ export class RethnetEthContext implements EthContextAdapter {
     const limitContractCodeSize =
       config.allowUnlimitedContractSize === true ? 2n ** 64n - 1n : undefined;
 
-    const rethnet = new Rethnet(this._blockchain, this._state.asInner(), {
-      chainId: BigInt(config.chainId),
-      specId: ethereumsjsHardforkToRethnetSpecId(hardforkName),
-      limitContractCodeSize,
-      disableBlockGasLimit: true,
-      disableEip3607: true,
-    });
+    const rethnet = new Rethnet(
+      this._blockchain.asInner(),
+      this._state.asInner(),
+      {
+        chainId: BigInt(config.chainId),
+        specId: ethereumsjsHardforkToRethnetSpecId(hardforkName),
+        limitContractCodeSize,
+        disableBlockGasLimit: true,
+        disableEip3607: true,
+      }
+    );
 
     const _selectHardfork: (blockNumber: bigint) => string;
 
     this._vm = new RethnetAdapter(
-      this._blockchain,
+      this._blockchain.asInner(),
       this._state,
       rethnet,
       _selectHardfork,
@@ -70,8 +75,7 @@ export class RethnetEthContext implements EthContextAdapter {
 
     this._miner = new RethnetMiner(
       new BlockMiner(
-        globalRethnetContext,
-        this._blockchain,
+        this._blockchain.asInner(),
         this._state.asInner(),
         this._mempool.asInner(),
         // TODO: Should this be the same config? Split config?
@@ -83,7 +87,7 @@ export class RethnetEthContext implements EthContextAdapter {
     );
   }
 
-  public blockchain(): HardhatBlockchainInterface {
+  public blockchain(): BlockchainAdapter {
     return this._blockchain;
   }
 

@@ -3,10 +3,10 @@ import { VMAdapter } from "./vm/vm-adapter";
 import { MemPoolAdapter } from "./mem-pool";
 import { BlockMinerAdapter } from "./miner";
 import { BlockBuilderAdapter, BuildBlockOpts } from "./vm/block-builder";
-import { HardhatBlockchainInterface } from "./types/HardhatBlockchainInterface";
+import { BlockchainAdapter } from "./blockchain";
 
 export interface EthContextAdapter {
-  blockchain(): HardhatBlockchainInterface;
+  blockchain(): BlockchainAdapter;
 
   blockBuilder(
     common: Common,

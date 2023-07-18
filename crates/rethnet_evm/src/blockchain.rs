@@ -1,12 +1,16 @@
-mod fork;
-mod in_memory;
+mod forked;
+mod local;
+mod storage;
 
-use std::fmt::Debug;
+use std::{fmt::Debug, sync::Arc};
 
-use rethnet_eth::{block::Block, U256};
+use rethnet_eth::{block::Block, remote::RpcClientError, B256, U256};
 use revm::db::BlockHashRef;
 
-pub use self::{fork::ForkBlockchain, in_memory::InMemoryBlockchain};
+pub use self::{
+    forked::{CreationError as ForkedCreationError, ForkedBlockchain},
+    local::{CreationError as LocalCreationError, LocalBlockchain},
+};
 
 /// Combinatorial error for the blockchain API.
 #[derive(Debug, thiserror::Error)]
@@ -25,6 +29,9 @@ pub enum BlockchainError {
     /// Invalid parent hash
     #[error("Invalid parent hash")]
     InvalidParentHash,
+    /// JSON-RPC error
+    #[error(transparent)]
+    JsonRpcError(#[from] RpcClientError),
     /// Block number does not exist in blockchain
     #[error("Unknown block number")]
     UnknownBlockNumber,
@@ -35,9 +42,32 @@ pub trait Blockchain {
     /// The blockchain's error type
     type Error;
 
-    /// Returns the last block in the blockchain.
-    // TODO: Make this a reference when we no longer support napi
-    fn last_block(&self) -> Block;
+    /// Retrieves the block with the provided hash, if it exists.
+    fn block_by_hash(&self, hash: &B256) -> Result<Option<Arc<Block>>, Self::Error>;
+
+    /// Retrieves the block with the provided number, if it exists.
+    fn block_by_number(&self, number: &U256) -> Result<Option<Arc<Block>>, Self::Error>;
+
+    /// Retrieves the block that contains a transaction with the provided hash, if it exists.
+    fn block_by_transaction_hash(
+        &self,
+        transaction_hash: &B256,
+    ) -> Result<Option<Arc<Block>>, Self::Error>;
+
+    /// Retrieves the last block in the blockchain.
+    fn last_block(&self) -> Result<Arc<Block>, Self::Error>;
+
+    /// Retrieves the last block number in the blockchain.
+    fn last_block_number(&self) -> U256;
+
+    /// Retrieves the total difficulty at the block with the provided hash.
+    fn total_difficulty_by_hash(&self, hash: &B256) -> Result<Option<U256>, Self::Error>;
+}
+
+/// Trait for implementations of a mutable Ethereum blockchain
+pub trait BlockchainMut {
+    /// The blockchain's error type
+    type Error;
 
     /// Inserts the provided block into the blockchain.
     fn insert_block(&mut self, block: Block) -> Result<(), Self::Error>;
@@ -45,7 +75,13 @@ pub trait Blockchain {
 
 /// Trait that meets all requirements for a synchronous database that can be used by [`AsyncBlockchain`].
 pub trait SyncBlockchain<E>:
-    Blockchain<Error = E> + BlockHashRef<Error = E> + Send + Sync + Debug + 'static
+    Blockchain<Error = E>
+    + BlockchainMut<Error = E>
+    + BlockHashRef<Error = E>
+    + Send
+    + Sync
+    + Debug
+    + 'static
 where
     E: Debug + Send,
 {
@@ -53,7 +89,13 @@ where
 
 impl<B, E> SyncBlockchain<E> for B
 where
-    B: Blockchain<Error = E> + BlockHashRef<Error = E> + Send + Sync + Debug + 'static,
+    B: Blockchain<Error = E>
+        + BlockchainMut<Error = E>
+        + BlockHashRef<Error = E>
+        + Send
+        + Sync
+        + Debug
+        + 'static,
     E: Debug + Send,
 {
 }

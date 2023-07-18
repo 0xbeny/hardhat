@@ -168,7 +168,7 @@ impl BlockBuilder {
 
             builder.finalize(rewards, timestamp).await.map_or_else(
                 |e| Err(napi::Error::new(Status::GenericFailure, e.to_string())),
-                |BlockResult { block, callers, .. }| Ok(Block::new(block, callers)),
+                |BlockResult { block, callers, .. }| Ok(Block::new(Arc::new(block), callers)),
             )
         } else {
             Err(napi::Error::new(

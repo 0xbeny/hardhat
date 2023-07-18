@@ -554,12 +554,13 @@ impl Server {
 
                 let fork_block_number = match config.block_number {
                     Some(block_number) => U256::from(block_number),
-                    None => RpcClient::new(&config.json_rpc_url)
-                        .get_block_by_number(rethnet_eth::remote::BlockSpec::latest())
-                        .await
-                        .expect("should retrieve latest block from fork source")
-                        .number
-                        .expect("fork source's latest block should have a block number"),
+                    None => {
+                        RpcClient::new(&config.json_rpc_url)
+                            .get_block_by_number(rethnet_eth::remote::BlockSpec::latest())
+                            .await
+                            .expect("should retrieve latest block from fork source")
+                            .number
+                    }
                 };
 
                 Arc::new(AppState {

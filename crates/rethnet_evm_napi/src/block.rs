@@ -1,6 +1,6 @@
 mod builder;
 
-use std::{mem, ops::Deref};
+use std::{mem, ops::Deref, sync::Arc};
 
 use napi::{
     bindgen_prelude::{BigInt, Buffer, Either3},
@@ -269,13 +269,13 @@ impl TryFrom<BlockHeader> for rethnet_eth::block::Header {
 
 #[napi]
 pub struct Block {
-    block: rethnet_eth::block::Block,
+    block: Arc<rethnet_eth::block::Block>,
     callers: Vec<rethnet_eth::Address>,
 }
 
 impl Block {
     /// Constructs a [`Block`] instance.
-    pub fn new(block: rethnet_eth::block::Block, callers: Vec<rethnet_eth::Address>) -> Self {
+    pub fn new(block: Arc<rethnet_eth::block::Block>, callers: Vec<rethnet_eth::Address>) -> Self {
         Self { block, callers }
     }
 }
