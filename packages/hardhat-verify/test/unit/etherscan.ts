@@ -63,7 +63,6 @@ describe("Etherscan", () => {
     ];
 
     it("should return the last matching custom chain defined by the user", async function () {
-      const networkName = "customChain2";
       const ethereumProvider = {
         async send() {
           return (5000).toString(16);
@@ -71,34 +70,30 @@ describe("Etherscan", () => {
       } as unknown as EthereumProvider;
 
       const currentChainConfig = await Etherscan.getCurrentChainConfig(
-        networkName,
         ethereumProvider,
         customChains
       );
 
-      assert.equal(currentChainConfig.network, networkName);
+      assert.equal(currentChainConfig.network, "customChain2");
       assert.equal(currentChainConfig.chainId, 5000);
     });
 
     it("should return a built-in chain if no custom chain matches", async function () {
-      const networkName = "goerli";
       const ethereumProvider = {
         async send() {
           return (5).toString(16);
         },
       } as unknown as EthereumProvider;
       const currentChainConfig = await Etherscan.getCurrentChainConfig(
-        networkName,
         ethereumProvider,
         customChains
       );
 
-      assert.equal(currentChainConfig.network, networkName);
+      assert.equal(currentChainConfig.network, "goerli");
       assert.equal(currentChainConfig.chainId, 5);
     });
 
     it("should throw if the selected network is hardhat and it's not a added to custom chains", async () => {
-      const networkName = "hardhat";
       const ethereumProvider = {
         async send() {
           return (31337).toString(16);
@@ -106,18 +101,13 @@ describe("Etherscan", () => {
       } as unknown as EthereumProvider;
 
       await expect(
-        Etherscan.getCurrentChainConfig(
-          networkName,
-          ethereumProvider,
-          customChains
-        )
+        Etherscan.getCurrentChainConfig(ethereumProvider, customChains)
       ).to.be.rejectedWith(
-        "The selected network is hardhat. Please select a network supported by Etherscan."
+        /The selected network is "hardhat", which is not supported for contract verification./
       );
     });
 
     it("should return hardhat if the selected network is hardhat and it was added as a custom chain", async () => {
-      const networkName = "hardhat";
       const ethereumProvider = {
         async send() {
           return (31337).toString(16);
@@ -125,7 +115,6 @@ describe("Etherscan", () => {
       } as unknown as EthereumProvider;
 
       const currentChainConfig = await Etherscan.getCurrentChainConfig(
-        networkName,
         ethereumProvider,
         [
           ...customChains,
@@ -140,12 +129,11 @@ describe("Etherscan", () => {
         ]
       );
 
-      assert.equal(currentChainConfig.network, networkName);
+      assert.equal(currentChainConfig.network, "hardhat");
       assert.equal(currentChainConfig.chainId, 31337);
     });
 
     it("should throw if there are no matches at all", async () => {
-      const networkName = "someNetwork";
       const ethereumProvider = {
         async send() {
           return (21343214123).toString(16);
@@ -153,11 +141,7 @@ describe("Etherscan", () => {
       } as unknown as EthereumProvider;
 
       await expect(
-        Etherscan.getCurrentChainConfig(
-          networkName,
-          ethereumProvider,
-          customChains
-        )
+        Etherscan.getCurrentChainConfig(ethereumProvider, customChains)
       ).to.be.rejectedWith(
         /Trying to verify a contract in a network with chain id 21343214123, but the plugin doesn't recognize it as a supported chain./
       );

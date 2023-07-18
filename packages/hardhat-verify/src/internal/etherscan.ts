@@ -14,7 +14,7 @@ import {
   MissingApiKeyError,
   ContractStatusPollingResponseNotOkError,
   ChainConfigNotFoundError,
-  NetworkNotSupportedError,
+  HardhatNetworkNotSupportedError,
 } from "./errors";
 import { sendGetRequest, sendPostRequest } from "./undici";
 import { sleep } from "./utilities";
@@ -44,11 +44,13 @@ export class Etherscan {
   }
 
   public static async getCurrentChainConfig(
-    name: string,
-    provider: EthereumProvider,
+    ethereumProvider: EthereumProvider,
     customChains: ChainConfig[]
   ): Promise<ChainConfig> {
-    const currentChainId = parseInt(await provider.send("eth_chainId"), 16);
+    const currentChainId = parseInt(
+      await ethereumProvider.send("eth_chainId"),
+      16
+    );
 
     const currentChainConfig = [
       // custom chains has higher precedence than builtin chains
@@ -57,8 +59,9 @@ export class Etherscan {
     ].find(({ chainId }) => chainId === currentChainId);
 
     if (currentChainConfig === undefined) {
-      if (name === HARDHAT_NETWORK_NAME) {
-        throw new NetworkNotSupportedError(name);
+      const hre = await import("hardhat");
+      if (hre.network.name === HARDHAT_NETWORK_NAME) {
+        throw new HardhatNetworkNotSupportedError();
       }
 
       throw new ChainConfigNotFoundError(currentChainId);
